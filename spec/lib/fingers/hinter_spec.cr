@@ -136,4 +136,38 @@ Changes not staged for commit:
     hinter.run
     hinter.run
   end
+  context "with hint position before" do
+    plain = ::Fingers::MatchFormatter.new(
+      hint_style: "", highlight_style: "", selected_hint_style: "",
+      selected_highlight_style: "", backdrop_style: "", hint_position: "before",
+      reset_sequence: ""
+    )
+
+    run_before = ->(input : String) do
+      output = TextOutput.new
+      hinter = Fingers::Hinter.new(
+        input: input.split("\n"),
+        width: 60,
+        patterns: Fingers::Config::BUILTIN_PATTERNS.values.to_a,
+        state: ::Fingers::State.new,
+        alphabet: ["y"],
+        output: output,
+        formatter: plain,
+        hint_position: "before"
+      )
+      hinter.run
+      {output.contents, hinter}
+    end
+
+    it "puts the hint in the column before the match" do
+      contents, hinter = run_before.call("see http://www.google.com now")
+      contents.should contain("seeyhttp://www.google.com now")
+      hinter.lookup("y").not_nil!.offset.should eq({0, 4})
+    end
+
+    it "covers the start of a match at the start of the line" do
+      contents, _ = run_before.call("http://www.google.com now")
+      contents.should contain("yttp://www.google.com now")
+    end
+  end
 end

@@ -21,6 +21,7 @@ module Fingers
     @hints : Array(String) | Nil
     @n_matches : Int32 | Nil
     @reuse_hints : Bool
+    @hint_position : String
 
     def initialize(
       input : Array(String),
@@ -31,7 +32,8 @@ module Fingers
       alphabet = Fingers.config.alphabet,
       huffman = Huffman.new,
       formatter = ::Fingers::MatchFormatter.new,
-      reuse_hints = false
+      reuse_hints = false,
+      hint_position = Fingers.config.hint_position
     )
       @lines = input
       @width = width
@@ -44,6 +46,7 @@ module Fingers
       @patterns = patterns
       @alphabet = alphabet
       @reuse_hints = reuse_hints
+      @hint_position = hint_position
     end
 
     def run
@@ -78,7 +81,7 @@ module Fingers
 
     def process_line(line, line_index, ending)
       tab_positions = tab_positions_for(line)
-      result = line.gsub(pattern) { |_m| replace($~, line_index) }
+      result = @hint_position == "before" ? hint_before_line(line, line_index) : line.gsub(pattern) { |_m| replace($~, line_index) }
       initial_length = result.size
       result = expand_tabs(result, tab_positions)
       tab_correction = result.size - initial_length
@@ -139,6 +142,58 @@ module Fingers
         selected: state.selected_hints.includes?(hint),
         offset: relative_capture_offset
       )
+    end
+
+    # hint_position "before": the hint takes the columns just before the
+    # captured text instead of covering its start, when those columns are free
+    # (not part of an earlier match, no tab or wide character); otherwise it is
+    # drawn over the start as with "left".
+    def hint_before_line(line, line_index) : String
+      String.build do |io|
+        last = 0
+        line.scan(pattern) do |m|
+          start = m.begin(0)
+          formatted, steal = replace_before(m, line_index, line[last...start])
+          io << line[last...(start - steal)] << formatted
+          last = m.end(0)
+        end
+        io << line[last..]
+      end
+    end
+
+    def replace_before(match, line_index, gap) : Tuple(String, Int32)
+      text = match[0]
+      captured_text = captured_text_for_match(match)
+      relative_capture_offset = relative_capture_offset_for_match(match, captured_text)
+      rel = relative_capture_offset ? relative_capture_offset[0] : 0
+
+      absolute_offset = {line_index, match.begin(0) + rel}
+      hint = hint_for_text(captured_text)
+
+      if hint.size > captured_text.size
+        hints.push(hint)
+        return {text, 0}
+      end
+
+      build_target(captured_text, hint, absolute_offset)
+
+      if !state.input.empty? && !hint.starts_with?(state.input)
+        return {text, 0}
+      end
+
+      selected = state.selected_hints.includes?(hint)
+      # Room inside the match, before its captured group, or else in the gap
+      # before the match.
+      room = rel > 0 ? text[0...rel] : gap
+      if room.size >= hint.size && room[-hint.size..].each_char.all? { |c| c != '\t' && c.bytesize < 3 }
+        formatted = formatter.format_before(
+          hint: hint, highlight: text, selected: selected,
+          offset: relative_capture_offset || {0, text.size}
+        )
+        return {formatted, rel > 0 ? 0 : hint.size}
+      end
+
+      {formatter.format(hint: hint, highlight: text, selected: selected, offset: relative_capture_offset), 0}
     end
 
     def captured_text_for_match(match)

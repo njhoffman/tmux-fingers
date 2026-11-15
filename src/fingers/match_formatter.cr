@@ -27,6 +27,16 @@ module Fingers
         after_offset(offset, highlight) + backdrop_style
     end
 
+    def format_before(hint : String, highlight : String, selected : Bool, offset : Tuple(Int32, Int32))
+      start, length = offset
+      hint_pair = (selected ? selected_hint_style : hint_style) + hint
+      highlight_pair = (selected ? selected_highlight_style : highlight_style) + highlight[start, length]
+      # With a captured group, the hint takes the end of the text before it.
+      before = start > 0 ? backdrop_style + highlight[0, start - hint.size] : ""
+      reset_sequence + before + hint_pair + reset_sequence + highlight_pair + reset_sequence +
+        backdrop_style + highlight[(start + length)..] + backdrop_style
+    end
+
     private getter :hint_style, :highlight_style, :selected_hint_style, :selected_highlight_style, :hint_position, :reset_sequence, :backdrop_style
 
     private def before_offset(offset, highlight)

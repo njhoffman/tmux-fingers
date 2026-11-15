@@ -63,4 +63,22 @@ describe Fingers::MatchFormatter do
       result.should eq("#[reset]#[reset]#[hint]a#[reset]#[highlight]ol#[reset]#[backdrop]o#[backdrop]")
     end
   end
+  context "format_before" do
+    formatter = Fingers::MatchFormatter.new(
+      highlight_style: "#[fg=yellow]", backdrop_style: "#[bg=black,fg=white]",
+      hint_style: "#[fg=yellow,bold]", selected_highlight_style: "#[fg=green]",
+      selected_hint_style: "#[fg=green,bold]", hint_position: "before",
+      reset_sequence: "#[reset]"
+    )
+
+    it "keeps the whole match after the hint" do
+      formatter.format_before(hint: "a", highlight: "yolo", selected: false, offset: {0, 4})
+        .should eq("#[reset]#[fg=yellow,bold]a#[reset]#[fg=yellow]yolo#[reset]#[bg=black,fg=white]#[bg=black,fg=white]")
+    end
+
+    it "takes the end of the text before a captured group" do
+      formatter.format_before(hint: "a", highlight: "x: yolo", selected: false, offset: {3, 4})
+        .should eq("#[reset]#[bg=black,fg=white]x:#[fg=yellow,bold]a#[reset]#[fg=yellow]yolo#[reset]#[bg=black,fg=white]#[bg=black,fg=white]")
+    end
+  end
 end
