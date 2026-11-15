@@ -56,6 +56,8 @@ module Fingers
         open
       when ":paste:"
         paste
+      when ":jump:"
+        jump
       when nil
         # do nothing
       else

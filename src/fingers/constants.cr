@@ -46,8 +46,9 @@ module Fingers
   COPY_ACTION = ":copy:"
   PASTE_ACTION = ":paste:"
   OPEN_ACTION = ":open:"
+  JUMP_ACTION = ":jump:"
 
-  ACTIONS = [COPY_ACTION, PASTE_ACTION, OPEN_ACTION]
+  ACTIONS = [COPY_ACTION, PASTE_ACTION, OPEN_ACTION, JUMP_ACTION]
 
   ANSI_RESET = "\e[0m"
 end
